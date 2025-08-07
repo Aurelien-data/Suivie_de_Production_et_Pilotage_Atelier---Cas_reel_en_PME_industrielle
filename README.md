@@ -3,9 +3,11 @@
 ## 🎯 Objectif du projet
 Ce dashboard Power BI a été développé pour une PME industrielle spécialisée dans la fabrication de gaines de ventilation. L’objectif : fournir un outil de suivi opérationnel précis et évolutif, capable de refléter en temps réel l’état d’avancement des lots de production, leur historique et les éventuels blocages.
 
+
 ## 🧠 Contexte métier
 Dans cette entreprise en pleine transition digitale, aucun indicateur centralisé ne permettait jusqu’alors de suivre les performances de l’atelier de manière fine. Les données issues de l’ERP étaient difficilement exploitables en l’état.
 Ce projet s’est donc inscrit dans une démarche de structuration de la donnée, de fiabilisation des informations et de création d’un outil d’aide à la décision pour les responsables de production.
+
 
 ## 📊 Fonctionnalités du dashboard
 Suivi quotidien de l’avancement des lots (GAINE, PLENUM, etc.)
@@ -22,6 +24,7 @@ Calcul du nombre de jours ouvrés de stockage et catégorisation des statuts de 
 
 Suivi de la charge de travail et des capacités disponibles par groupe (Gaine, Plenum)
 
+
 ## ⚙️ Outils & Technologies utilisés
 Power BI
 
@@ -35,6 +38,7 @@ Python (scripts d’automatisation des snapshots)
 
 .bat (workflow automatisé local)
 
+
 ## 🧩 Structure technique
 Modèle en étoile avec table de faits centralisée (FACT_PLANNING)
 
@@ -43,6 +47,7 @@ Intégration de données ERP via ODBC + fichiers Excel exportés
 Gestion des prix composants avec historisation temporelle
 
 Calculs DAX complexes pour la surcharge atelier, les alertes, la traçabilité des lots
+
 
 🚀 Résultats & impact
 💡 Mise à disposition d’un outil 100 % automatisé, consultable à tout moment
@@ -55,10 +60,12 @@ Calculs DAX complexes pour la surcharge atelier, les alertes, la traçabilité d
 
 🧠 Réelle aide au pilotage pour anticiper les saturations et arbitrer les priorités
 
+
 ## 📁 Confidentialité
 Les données sources et fichiers Power BI ne peuvent être publiés pour des raisons de confidentialité (RGPD & propriété de l’entreprise).
 
 👉 Ce projet est néanmoins valorisable comme démonstration de cas concret d’intégration BI en entreprise, avec une forte implication métier et technique.
+
 
 ## ✅ En résumé
 Un projet complet mêlant :
