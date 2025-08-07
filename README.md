@@ -57,6 +57,7 @@ Calculs DAX complexes pour la surcharge atelier, les alertes, la traçabilité d
 
 ## 📁 Confidentialité
 Les données sources et fichiers Power BI ne peuvent être publiés pour des raisons de confidentialité (RGPD & propriété de l’entreprise).
+
 👉 Ce projet est néanmoins valorisable comme démonstration de cas concret d’intégration BI en entreprise, avec une forte implication métier et technique.
 
 ## ✅ En résumé
