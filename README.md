@@ -1,4 +1,4 @@
-" 🏭 Suivi de Production et Pilotage Atelier – Cas réel en PME industrielle
+# 🏭 Suivi de Production et Pilotage Atelier – Cas réel en PME industrielle
 
 ## 🎯 Objectif du projet
 Ce dashboard Power BI a été développé pour une PME industrielle spécialisée dans la fabrication de gaines de ventilation. L’objectif : fournir un outil de suivi opérationnel précis et évolutif, capable de refléter en temps réel l’état d’avancement des lots de production, leur historique et les éventuels blocages.
