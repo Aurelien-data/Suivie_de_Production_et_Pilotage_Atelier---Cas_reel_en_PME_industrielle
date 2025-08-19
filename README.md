@@ -56,6 +56,7 @@ Calculs DAX complexes pour la surcharge atelier, les alertes, la traçabilité d
 
 
 🚀 Résultats & impact
+
 💡 Mise à disposition d’un outil 100 % automatisé, consultable à tout moment
 
 📈 Gain de visibilité sur les goulots d’étranglement
