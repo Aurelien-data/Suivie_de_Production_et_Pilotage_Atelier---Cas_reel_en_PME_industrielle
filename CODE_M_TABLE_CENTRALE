@@ -1,0 +1,352 @@
+CODE M FACT_PLANNING
+
+let
+    Source = Odbc.Query("dsn=HFSQL ERVENT", "SELECT#(lf)IDplanning, DTCDE, DTDES, DTFAB, CLIENT, CHANTIER, CONTENU, ZONESTOCK, MSAF, MSFAIT, #(lf)GAINESDAF, GAINESDFA, CADRES, LASER, PREPA, PLIAGE, ASSEMBLAGE, ISO, IBME, TERMINE,#(lf)FICPDF, heure, ColisCamions, TriLaser, Ass, datetermine, GDFAITE, DEVIS, TPP, TPU,#(lf)TBP, TBU, ISOP, ISOU, TPREV, TUTIL, VVendu, facturation, Datereelle, PLI1_TERM,#(lf)HDEB_PLI1, hfin_pli1, chrono_pli1, GainesPlenums, Selection, MSOK, CADRESOK, FINITIONGDOK,#(lf)QTEPLENUMSTOT, QTEPLENUMSISO, QTEPLENUMSNU, COUPEMAN, Waterjetok, PIQUAGEPLEOK, ASSPLOK,#(lf)MIGOK, BOUCHOK, POSEISOOK, POSTIT, CONDOK, CHARGEMENTOK, FINGAINOK, DTDEPART, HEUDEPART,#(lf)BOUCH, MIG, WJ, CPMAN, IDCAMDUCT, MO, MOISO, Email, tpstockage, dtenvoimail, ID_MISE_EN_FAB,#(lf)CLIENT_TEL, NUM_DOSSIER, ID_DEMANDEUR, DATE_HEURE_FAB, PLIAGEALOK, PLIAGEPANOK#(lf)FROM#(lf)Planning#(lf)WHERE#(lf)DTFAB >= '2023-01-01' ;"),
+    #"Type modifié" = Table.TransformColumnTypes(Source,{{"DTFAB", type date}}),
+    #"Lignes filtrées" = Table.SelectRows(#"Type modifié", each [Datereelle] > #date(2024, 12, 31)),
+    #"Requêtes fusionnées" = Table.NestedJoin(#"Lignes filtrées", {"CLIENT"}, DIM_CLIENT, {"CLIENT"}, "DIM_CLIENT", JoinKind.LeftOuter),
+    #"DIM_CLIENT développé" = Table.ExpandTableColumn(#"Requêtes fusionnées", "DIM_CLIENT", {"ID_Client"}, {"ID_Client"}),
+    #"Colonnes supprimées" = Table.RemoveColumns(#"DIM_CLIENT développé",{"CLIENT", "DTCDE", "DTDES", "MSFAIT", "LASER", "IBME", "TPP", "TPU", "TBP", "TBU", "ISOP", "ISOU", "TPREV", "TUTIL", "VVendu", "PLI1_TERM", "HDEB_PLI1", "hfin_pli1", "chrono_pli1", "Selection", "COUPEMAN", "BOUCHOK", "POSTIT", "CONDOK", "BOUCH", "CPMAN", "Email", "dtenvoimail", "CLIENT_TEL", "NUM_DOSSIER", "PLIAGEPANOK", "DEVIS", "facturation", "DATE_HEURE_FAB", "ASSEMBLAGE", "tpstockage"}),
+    #"Type modifié7" = Table.TransformColumnTypes(#"Colonnes supprimées",{{"CADRES", Int64.Type}}),
+    #"Colonne Type Lot créée" = Table.AddColumn(#"Type modifié7", "Type", each 
+if [GainesPlenums] = "1" then "M" 
+else if [GainesPlenums] = "2" then "G" 
+else if [GainesPlenums] = "3" then "P" 
+else "Type lot inconnu"),
+    #"Colonne ID Type" = Table.AddColumn(#"Colonne Type Lot créée", "ID_Type", each
+if [Type] = "G" then 1
+else if [Type] = "M" then 2
+else if [Type] = "P" then 3
+else "Type lot inconnu"),
+    #"Colonnes supprimées3" = Table.RemoveColumns(#"Colonne ID Type",{"Type"}),
+    #"Type modifié12" = Table.TransformColumnTypes(#"Colonnes supprimées3",{{"ID_Type", Int64.Type}}),
+    #"Colonnes supprimées1" = Table.RemoveColumns(#"Type modifié12",{"GainesPlenums"}),
+    #"Colonne Statut_Stock" = Table.AddColumn(#"Colonnes supprimées1", "Statut_Stock", 
+each if [TERMINE] = 1 and [CHARGEMENTOK] = 1 then "Parti"
+else if [TERMINE] = 1 and ([CHARGEMENTOK] = 0 or [CHARGEMENTOK] = null) then "En_stock"
+else "Fab_en_cours"),
+    #"Colonne ID Statut Stock" = Table.AddColumn(#"Colonne Statut_Stock", "ID_Statut_Stock", each
+    if [Statut_Stock] = "Fab_en_cours" then 1
+    else if [Statut_Stock] = "En_stock" then 2
+    else if [Statut_Stock] = "Parti" then 3
+    else 9
+),
+    Personnalisé1 = Table.RemoveColumns(#"Colonne ID Statut Stock", {"Statut_Stock"}),
+    #"Type modifié13" = Table.TransformColumnTypes(Personnalisé1,{{"ID_Statut_Stock", Int64.Type}}),
+    #"Type modifié11" = Table.TransformColumnTypes(#"Type modifié13",{{"ID_Statut_Stock", Int64.Type}}),
+    #"Type modifié2" = Table.TransformColumnTypes(#"Type modifié11",{{"TERMINE", type text}}),
+    #"Valeur remplacée" = Table.ReplaceValue(#"Type modifié2","0","En cours",Replacer.ReplaceText,{"TERMINE"}),
+    #"Valeur remplacée1" = Table.ReplaceValue(#"Valeur remplacée","1","Terminé",Replacer.ReplaceText,{"TERMINE"}),
+    #"Colonne ID Termine" = Table.AddColumn(#"Valeur remplacée1", "ID_Termine", each
+if [TERMINE] = "En cours" then 1
+else if [TERMINE] = "Terminé" then 2
+else null),
+    #"Type modifié1" = Table.TransformColumnTypes(#"Colonne ID Termine",{{"ID_Termine", Int64.Type}}),
+    Personnalisé2 = Table.RemoveColumns(#"Type modifié1", {"TERMINE"}),
+    #"Requêtes fusionnées4" = Table.NestedJoin(Personnalisé2, {"ID_MISE_EN_FAB"}, FACT_MISE_EN_FAB, {"ID_MISE_EN_FAB"}, "FACT_MISE_EN_FAB", JoinKind.LeftOuter),
+    #"FACT_MISE_EN_FAB développé" = Table.ExpandTableColumn(#"Requêtes fusionnées4", "FACT_MISE_EN_FAB", {"DH_CREATION"}, {"DH_CREATION"}),
+    #"Requêtes fusionnées7" = Table.NestedJoin(#"FACT_MISE_EN_FAB développé", {"IDplanning"}, FACT_TIMERCLIC, {"IDPLANNING"}, "FACT_TIMERCLIC", JoinKind.LeftOuter),
+    #"FACT_TIMERCLIC développé" = Table.ExpandTableColumn(#"Requêtes fusionnées7", "FACT_TIMERCLIC", {"CHARGETMR", "TERMTMR"}, {"CHARGETMR", "TERMTMR"}),
+    #"Colonne Nb Jours Stockage Ouvrés" = Table.AddColumn(#"FACT_TIMERCLIC développé", "Nb_Jours_Stockage_Ouvres", each if [TERMTMR] = null then null 
+else 
+let 
+    dateDebut = [TERMTMR],
+    dateFin = if [CHARGETMR] <> null then [CHARGETMR] else DateTime.LocalNow(),
+    listeJours = List.Dates(Date.From(dateDebut), Duration.Days(dateFin - dateDebut) + 1, #duration(1,0,0,0)),
+    joursOuvres = List.Count(List.Select(listeJours, each Date.DayOfWeek(_, Day.Monday) < 5))
+in 
+    joursOuvres),
+    #"Type modifié4" = Table.TransformColumnTypes(#"Colonne Nb Jours Stockage Ouvrés",{{"Nb_Jours_Stockage_Ouvres", Int64.Type}}),
+    #"Requêtes fusionnées8" = Table.NestedJoin(#"Type modifié4", {"ID_DEMANDEUR"}, FACT_UTILISATEUR, {"IDUTIL_AUTOR"}, "FACT_UTILISATEUR", JoinKind.LeftOuter),
+    #"FACT_UTILISATEUR développé" = Table.ExpandTableColumn(#"Requêtes fusionnées8", "FACT_UTILISATEUR", {"UTILISATEUR"}, {"UTILISATEUR"}),
+    #"Requêtes fusionnées9" = Table.NestedJoin(#"FACT_UTILISATEUR développé", {"UTILISATEUR"}, DIM_UTILISATEUR, {"UTILISATEUR"}, "DIM_UTILISATEUR", JoinKind.LeftOuter),
+    #"DIM_UTILISATEUR développé" = Table.ExpandTableColumn(#"Requêtes fusionnées9", "DIM_UTILISATEUR", {"ID_UTILISATEUR"}, {"ID_UTILISATEUR"}),
+    #"Colonnes supprimées6" = Table.RemoveColumns(#"DIM_UTILISATEUR développé",{"UTILISATEUR"}),
+    #"Colonne Ecart Jours Ouvres DELAI ATELIER" = Table.AddColumn(#"Colonnes supprimées6", "Ecart_Jours_Ouvres_DELAI_ATELIER", each
+    let
+        DateDebut = [DH_CREATION],
+        DateFinRaw = [datetermine],
+        Auj = Date.From(DateTime.LocalNow()),
+
+        Resultat =
+        if DateDebut = null then null
+        else if DateFinRaw = null then null // Lot non terminé → pas d’écart encore
+        else
+            let
+                DateFin = DateFinRaw,
+                DateMin = Date.AddDays(DateDebut, 1),
+                DateMax = DateFin,
+
+                JoursOuvres = Table.SelectRows(
+                    DIM_DATE_REELLE,
+                    each [DateReelle] >= DateMin
+                       and [DateReelle] <= DateMax
+                       and [Type_Jour] = "Jour_Ouvré"
+                ),
+
+                NbJours = Table.RowCount(JoursOuvres)
+            in
+                NbJours
+    in
+        Resultat
+),
+    #"Type modifié6" = Table.TransformColumnTypes(#"Colonne Ecart Jours Ouvres DELAI ATELIER",{{"Ecart_Jours_Ouvres_DELAI_ATELIER", Int64.Type}}),
+    #"Colonne Statut Ecart Jours Ouvres DELAI ATELIER" = Table.AddColumn(#"Type modifié6", "Statut Ecart Jours Ouvres DELAI ATELIER", 
+each if [Ecart_Jours_Ouvres_DELAI_ATELIER] = null then "Fab en cours"
+else if [Ecart_Jours_Ouvres_DELAI_ATELIER] <= 3 then "Délai Très Insuffisant"
+else if [Ecart_Jours_Ouvres_DELAI_ATELIER] = 4 then "Délai Insuffisant"
+else if [Ecart_Jours_Ouvres_DELAI_ATELIER] = 5 then "Délai Insuffisant"
+else if [Ecart_Jours_Ouvres_DELAI_ATELIER] > 5 then "Délai Suffisant"
+else null),
+    #"Colonne ID Statut Ecart Jours Ouvres DELAI ATELIER" = Table.AddColumn(#"Colonne Statut Ecart Jours Ouvres DELAI ATELIER", "ID_Statut Ecart Jours Ouvres DELAI ATELIER", each
+if [Statut Ecart Jours Ouvres DELAI ATELIER] = "Délai Insuffisant" then 1
+else if [Statut Ecart Jours Ouvres DELAI ATELIER] = "Délai Suffisant" then 2
+else if [Statut Ecart Jours Ouvres DELAI ATELIER] = "Délai Très Insuffisant" then 3
+else if [Statut Ecart Jours Ouvres DELAI ATELIER] = "Fab en cours" then 4
+else null
+),
+    #"Type modifié17" = Table.TransformColumnTypes(#"Colonne ID Statut Ecart Jours Ouvres DELAI ATELIER",{{"ID_Statut Ecart Jours Ouvres DELAI ATELIER", Int64.Type}}),
+    Personnalisé7 = Table.RemoveColumns(#"Type modifié17", {"Statut Ecart Jours Ouvres DELAI ATELIER"}),
+    #"Colonne Ecart Jours Ouvres PLANNING FAB" = Table.AddColumn(Personnalisé7, "Ecart_Jours_Ouvres_PLANNING_FAB", each
+    let
+        DatePrevue = [Datereelle],
+        DateEffective = [datetermine],
+        Auj = Date.From(DateTime.LocalNow()),
+
+        // Si date prévue manquante → on renvoie null (pas calculable)
+        Resultat = 
+        if DatePrevue = null then null
+
+        // Cas 1 : date effective connue → calcul classique
+        else if DateEffective <> null then
+            if DateEffective = DatePrevue then 0
+            else
+                let
+                    DateDebut = if DateEffective < DatePrevue then Date.AddDays(DateEffective, 1) else DatePrevue,
+                    DateFin   = if DateEffective < DatePrevue then DatePrevue else Date.AddDays(DateEffective, -1),
+
+                    JoursOuvres = Table.SelectRows(
+                        DIM_DATE_REELLE,
+                        each [DateReelle] >= DateDebut 
+                          and [DateReelle] <= DateFin
+                          and [Type_Jour] = "Jour_Ouvré"
+                    ),
+
+                    NbJours = Table.RowCount(JoursOuvres),
+                    Sens = if DateEffective < DatePrevue then NbJours else -NbJours
+                in
+                    Sens
+
+        // Cas 2 : date effective vide → on utilise la date du jour comme date "temporaire"
+        else
+            let
+                DateDebut = if Auj < DatePrevue then Date.AddDays(Auj, 1) else DatePrevue,
+                DateFin   = if Auj < DatePrevue then DatePrevue else Date.AddDays(Auj, -1),
+
+                JoursOuvres = Table.SelectRows(
+                    DIM_DATE_REELLE,
+                    each [DateReelle] >= DateDebut 
+                      and [DateReelle] <= DateFin
+                      and [Type_Jour] = "Jour_Ouvré"
+                ),
+
+                NbJours = Table.RowCount(JoursOuvres),
+                Sens = if Auj < DatePrevue then NbJours else -NbJours
+            in
+                Sens
+    in
+        Resultat
+),
+    #"Type modifié3" = Table.TransformColumnTypes(#"Colonne Ecart Jours Ouvres PLANNING FAB",{{"Ecart_Jours_Ouvres_PLANNING_FAB", Int64.Type}}),
+    #"Colonne Statut Ecart Jours Ouvres PLANNING FAB" = Table.AddColumn(#"Type modifié3", "Statut_Ecart_Jours_Ouvres_PLANNING_FAB", each 
+    let
+        IDTermine = [ID_Termine],
+        Ecart = [Ecart_Jours_Ouvres_PLANNING_FAB]
+    in
+        if IDTermine = 2 and Ecart <> null and Ecart < 0 then "Fab terminée en retard"
+        else if IDTermine = 2 and Ecart <> null then "Fab terminée dans délais"
+        else if IDTermine = 1 and Ecart <> null and Ecart < 0 then "Fab en cours retard"
+        else if IDTermine = 1 and Ecart <> null then "Fab en cours dans délais"
+        else "Cas non identifié"
+),
+    #"Colonne ID Statut Ecart Jours Ouvres PLANNING FAB" = Table.AddColumn(#"Colonne Statut Ecart Jours Ouvres PLANNING FAB", "ID_Statut_Ecart_Jours_Ouvres_PLANNING_FAB", each
+    let statut = [Statut_Ecart_Jours_Ouvres_PLANNING_FAB]
+    in
+        if statut = "Fab terminée en retard" then 1
+        else if statut = "Fab terminée dans délais" then 2
+        else if statut = "Fab en cours retard" then 3
+        else if statut = "Fab en cours dans délais" then 4
+        else 99
+),
+    #"Type modifié16" = Table.TransformColumnTypes(#"Colonne ID Statut Ecart Jours Ouvres PLANNING FAB",{{"ID_Statut_Ecart_Jours_Ouvres_PLANNING_FAB", Int64.Type}}),
+    Personnalisé5 = Table.RemoveColumns(#"Type modifié16", {"Statut_Ecart_Jours_Ouvres_PLANNING_FAB"}),
+    #"Colonne Statut Stockage" = Table.AddColumn(Personnalisé5, "Statut_Stockage", each 
+    let 
+        id = [ID_Statut_Ecart_Jours_Ouvres_PLANNING_FAB],
+        jours = [Nb_Jours_Stockage_Ouvres],
+        termine = [ID_Termine]
+    in
+        if termine <> 2 then "Stock à venir"  // Le lot n’est pas terminé → on n’analyse pas le stockage
+
+        else if jours >= 1 and jours <= 7 then "Stock récent"
+        else if jours >= 8 and jours <= 15 then "Stock à surveiller"
+        else if jours >= 16 then "Stock alerte"
+        else null
+),
+    #"Colonne ID Statut Stockage" = Table.AddColumn(#"Colonne Statut Stockage", "ID_Statut_Stockage", each 
+    let 
+        estTermine = [ID_Termine] = 2,
+        jours = [Nb_Jours_Stockage_Ouvres]
+    in
+        if not estTermine then 1  // Stock à venir
+        else if jours >= 1 and jours <= 7 then 2  // Stock récent
+        else if jours >= 8 and jours <= 15 then 3  // Stock à surveiller
+        else if jours >= 16 then 4  // Stock alerte
+        else 9  // Cas non identifié
+),
+    #"Type modifié15" = Table.TransformColumnTypes(#"Colonne ID Statut Stockage",{{"ID_Statut_Stockage", Int64.Type}}),
+    Personnalisé4 = Table.RemoveColumns(#"Type modifié15", {"Statut_Stockage"}),
+    #"Colonne Delai Retard" = Table.AddColumn(Personnalisé4, "Delai_Retard", 
+each if [ID_Statut_Ecart_Jours_Ouvres_PLANNING_FAB] = 2 then "Lot dans délai"
+else if [ID_Statut_Ecart_Jours_Ouvres_PLANNING_FAB] = 4 then "Lot dans délai"
+else if [ID_Statut_Ecart_Jours_Ouvres_PLANNING_FAB] = 1 then "Lot en retard"
+else if [ID_Statut_Ecart_Jours_Ouvres_PLANNING_FAB] = 3 then "Lot en retard"
+else null),
+    #"Colonne ID Delai Retard" = Table.AddColumn(#"Colonne Delai Retard", "ID_Delai_Retard", each
+if [Delai_Retard] = "Lot en retard" then 1
+else if [Delai_Retard] = "Lot dans délai" then 2
+else null),
+    #"Type modifié14" = Table.TransformColumnTypes(#"Colonne ID Delai Retard",{{"ID_Delai_Retard", Int64.Type}}),
+    Personnalisé3 = Table.RemoveColumns(#"Type modifié14", {"Delai_Retard"}),
+    #"Colonne Nb Etapes A Realiser GAINES" = Table.AddColumn(Personnalisé3, "Nb_Etapes_A_Realiser_GAINES", each 
+    if [ID_Type] = 1 then
+        // Étapes toujours à faire (flux mini)
+        1 +  // TriLaser
+        1 +  // PREPA
+        1 +  // PLIAGE
+        1 +  // Ass
+        // Étapes conditionnelles
+        (if [CADRES] <> null and [CADRES] <> 0 then 1 else 0) +
+        (if [MSAF] <> null and [MSAF] <> 0 then 1 else 0) +
+        (if [MIG] <> null and Text.From([MIG]) = "M" then 1 else 0) +
+        (if [ISO] <> null and Text.Trim(Text.From([ISO])) <> "" and Text.From([ISO]) <> "0" then 2 else 0) +
+        (if [GAINESDAF] <> null and [GAINESDAF] <> 0 then 2 else 0)
+    else 
+        null
+),
+    #"Colonne Nb Etapes Realisees GAINES" = Table.AddColumn(#"Colonne Nb Etapes A Realiser GAINES", "Nb_Etapes_Realisees_GAINES", each
+    if [ID_Type] = 1 then
+        // Étapes du flux mini : on les surveille toujours (1 si cochée, 0 sinon)
+        (if [TriLaser] <> null and [TriLaser] = 1 then 1 else 0) +
+        (if [PREPA] <> null and [PREPA] = 1 then 1 else 0) +
+        (if [PLIAGE] <> null and [PLIAGE] = 1 then 1 else 0) +
+        (if [Ass] <> null and [Ass] = 1 then 1 else 0) +
+
+        // Étapes conditionnelles
+        (if [CADRESOK] <> null and [CADRESOK] = 1 then 1 else 0) +
+        (if [MSOK] <> null and [MSOK] = 1 then 1 else 0) +
+        (if [MIGOK] <> null and [MIGOK] = 1 then 1 else 0) +
+        (if [Waterjetok] <> null and [Waterjetok] = 1 then 1 else 0) +
+        (if [POSEISOOK] <> null and [POSEISOOK] = 1 then 1 else 0) +
+        (if [GDFAITE] <> null and [GDFAITE] = 1 then 1 else 0) +
+        (if [FINITIONGDOK] <> null and [FINITIONGDOK] = 1 then 1 else 0)
+    else 
+        null
+),
+    #"Colonne Taux Avancement GAINE" = Table.AddColumn(#"Colonne Nb Etapes Realisees GAINES", "Taux_Avancement_GAINE", each 
+    let
+        Afaire = try Number.From([Nb_Etapes_A_Realiser_GAINES]) otherwise null,
+        Realise = try Number.From([Nb_Etapes_Realisees_GAINES]) otherwise null,
+        Taux = 
+            if Afaire = null or Afaire = 0 then null
+            else if Realise > Afaire then 1
+            else Number.Round(Realise / Afaire, 2)
+    in
+        Taux
+),
+    #"Type modifié5" = Table.TransformColumnTypes(#"Colonne Taux Avancement GAINE",{{"Taux_Avancement_GAINE", Percentage.Type}}),
+    #"Colonne Anomalie Avancement GAINE" = Table.AddColumn(#"Type modifié5", "Anomalie_Avancement_GAINE", each
+    if [ID_Type] = 1 then
+        let
+            Realise = [Nb_Etapes_Realisees_GAINES],
+            Afaire = [Nb_Etapes_A_Realiser_GAINES],
+            Taux = try Number.From([Taux_Avancement_GAINE]) otherwise null
+        in
+            if Afaire <> null and Realise > Afaire then
+                "Trop d'étapes"
+            else if [ID_Termine] = 2 and Taux <> null and Taux < 1 then
+                "Marqué terminé mais incomplet"
+            else
+                null
+    else
+        null
+),
+    #"Colonne Nb Etapes A Realiser PLENUM" = Table.AddColumn(#"Colonne Anomalie Avancement GAINE", "Nb_Etapes_A_Realiser_PLENUM", each
+if [ID_Type] = 3 then
+// étapes toujours à faire (flux mini)
+1 + // TriLaser
+1 + // Pliage
+1 + // Piquage (PIQUAGEPLEOK)
+1 + // Assemblage (ASSPLOK)
+// étapes conditionnelles
+(if [ISO] <> null and Text.Trim(Text.From([ISO])) <> "" and Text.From([ISO]) <> "0" then 2 else 0)
+else null
+),
+    #"Colonne Nb Etapes Realisees PLENUM" = Table.AddColumn(#"Colonne Nb Etapes A Realiser PLENUM", "Nb_Etapes_Realisees_PLENUM", each
+if [ID_Type] = 3 then
+// étapes du flux mini: on les surveille toujours (1 si cochée, 0 sinon)
+(if [TriLaser] <> null and [TriLaser] = 1 then 1 else 0) +
+(if [PLIAGE] <> null and [PLIAGE] = 1 then 1 else 0) +
+(if [PIQUAGEPLEOK] <> null and [PIQUAGEPLEOK] = 1 then 1 else 0) +
+(if [ASSPLOK] <> null and [ASSPLOK] = 1 then 1 else 0) +
+// étapes conditionnelles
+(if [Waterjetok] <> null and [Waterjetok] = 1 then 1 else 0) +
+(if [POSEISOOK] <> null and [POSEISOOK] = 1 then 1 else 0)
+else null
+),
+    #"Colonne Taux Avancement PLENUM" = Table.AddColumn(#"Colonne Nb Etapes Realisees PLENUM", "Taux_Avancement_PLENUM", each
+let
+AFaire = try Number.From([Nb_Etapes_A_Realiser_PLENUM]) otherwise null,
+Realise = try Number.From([Nb_Etapes_Realisees_PLENUM]) otherwise null,
+Taux = 
+if AFaire = null or AFaire = 0 then null
+else if Realise > AFaire then 1
+else Number.Round(Realise/AFaire, 2)
+in
+Taux
+),
+    #"Type modifié8" = Table.TransformColumnTypes(#"Colonne Taux Avancement PLENUM",{{"Taux_Avancement_PLENUM", Percentage.Type}}),
+    #"Colonne Anomalie Avancement PLENUM" = Table.AddColumn(#"Type modifié8", "Anomalie_Avancement_PLENUM", each
+if [ID_Type] = 3 then
+let
+Realise = [Nb_Etapes_Realisees_PLENUM],
+Afaire = [Nb_Etapes_A_Realiser_PLENUM],
+Taux = try Number.From([Taux_Avancement_PLENUM]) otherwise null
+in
+if Afaire <> null and Realise > Afaire then "Trop d'étapes"
+else if [ID_Termine] = 2 and Taux <> null and Taux < 1 then "Marqué terminé mais incomplet"
+else null
+else null 
+),
+    #"Types colonnes modifiés" = Table.TransformColumnTypes(#"Colonne Anomalie Avancement PLENUM",
+{
+    {"Nb_Etapes_A_Realiser_GAINES", Int64.Type},
+    {"Nb_Etapes_Realisees_GAINES", Int64.Type},
+    {"Anomalie_Avancement_GAINE", type text},
+    {"Nb_Etapes_A_Realiser_PLENUM", Int64.Type},
+    {"Nb_Etapes_Realisees_PLENUM", Int64.Type},
+    {"Anomalie_Avancement_PLENUM", type text}
+}),
+    #"Colonne MO Restant GAINE" = Table.AddColumn(#"Types colonnes modifiés", "MO_Restant_GAINE", each
+if [MO] <> null and [Taux_Avancement_GAINE] <> null
+then Number.Round([MO] * (1 -[Taux_Avancement_GAINE]), 2)
+else null
+),
+    #"Type modifié9" = Table.TransformColumnTypes(#"Colonne MO Restant GAINE",{{"MO_Restant_GAINE", type number}}),
+    #"Colonne MO Restant PLENUM" = Table.AddColumn(#"Type modifié9", "MO_Restant_PLENUM", each
+if [MO] <> null and [Taux_Avancement_PLENUM] <> null
+then Number.Round([MO] * (1 - [Taux_Avancement_PLENUM]), 2)
+else null),
+    #"Type modifié10" = Table.TransformColumnTypes(#"Colonne MO Restant PLENUM",{{"MO_Restant_PLENUM", type number}})
+in
+    #"Type modifié10"
